@@ -1,0 +1,34 @@
+{
+  "name": "@yozo06/sutra",
+  "version": "0.1.0",
+  "description": "Small pure functions, chained, for building offline learning games: spaced repetition, streaks, save codes, translations, voice packs, anonymous analytics and an offline app shell.",
+  "type": "module",
+  "license": "MIT",
+  "repository": { "type": "git", "url": "git+https://github.com/yozo06/sutra.git" },
+  "keywords": ["learning", "spaced-repetition", "pwa", "offline-first", "functional", "i18n", "indic", "analytics"],
+  "sideEffects": false,
+  "files": ["dist", "bin", "README.md", "LICENSE"],
+  "exports": {
+    ".": "./dist/index.js",
+    "./core": "./dist/core/index.js",
+    "./srs": "./dist/srs/index.js",
+    "./habit": "./dist/habit/index.js",
+    "./save": "./dist/save/index.js",
+    "./i18n": "./dist/i18n/index.js",
+    "./audio": "./dist/audio/index.js",
+    "./analytics": "./dist/analytics/index.js",
+    "./pwa": "./dist/pwa/index.js",
+    "./browser": "./dist/browser/index.js"
+  },
+  "bin": { "sutra-sw": "./bin/sutra-sw.mjs" },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "pure": "tsc -p tsconfig.pure.json && node scripts/check-purity.mjs",
+    "test": "node --test",
+    "check": "npm run build && npm run pure && npm test",
+    "prepare": "npm run build"
+  },
+  "devDependencies": {
+    "typescript": ">=5.6"
+  }
+}

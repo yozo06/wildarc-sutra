@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>sutra: hello</title>
+<style>
+  body { font: 18px/1.5 system-ui, sans-serif; max-width: 26rem; margin: 2rem auto; padding: 0 1rem; }
+  button { font: inherit; padding: .6rem 1rem; margin: .25rem .25rem .25rem 0; border-radius: .6rem; border: 1px solid #888; background: #fff; }
+  .big { font-size: 2rem; margin: .5rem 0; }
+  small { color: #555; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<!-- No bundler: the built files in dist/ are plain ES modules a browser can load as they are. -->
+<script type="module">
+import { core, srs, habit, i18n, analytics } from '../../dist/index.js';
+import { start, onActions, esc, readClock, localStore, readJson, writeJson, sendToGoatcounter } from '../../dist/browser/index.js';
+
+// ---- content is data ----
+const CARDS = [{ id: 'hello', en: 'Hello', hi: 'नमस्ते' }, { id: 'thanks', en: 'Thank you', hi: 'धन्यवाद' }, { id: 'water', en: 'Water', hi: 'पानी' }];
+const HI = { 'Do you know this word?': 'क्या आप यह शब्द जानते हैं?', 'Yes': 'हाँ', 'Not yet': 'अभी नहीं', 'Day streak: {n}': 'लगातार दिन: {n}' };
+
+// ---- the program: small updates, chained ----
+const init = { i: 0, lang: 'en', cards: {}, streak: habit.NO_STREAK, meter: analytics.NEW_METER };
+const meterFor = (lang) => analytics.meter({ app: 'hello', lang });
+
+/** The lesson itself: one card at a time, spaced repetition and the streak. */
+const lesson = (s, e) => {
+  if (e.t === 'lang') return [{ ...s, lang: e.lang }, []];
+  if (e.t !== 'answer') return [s, []];
+  const card = CARDS[s.i % CARDS.length];
+  return [{ ...s, i: s.i + 1, streak: habit.touch(s.streak, e.day), cards: { ...s.cards, [card.id]: srs.review(s.cards[card.id], e.right, e.now) } }, [{ t: 'save' }]];
+};
+/** Turn app events into anonymous signals, and let the meter decide what to count. */
+const toSignal = (e) => e.t === 'opened' ? { t: 'open', day: e.day } : e.t === 'answer' ? { t: 'count', day: e.day, name: e.right ? 'knew' : 'new-word' } : e.t === 'sent' || e.t === 'failed' ? e : undefined;
+const counting = (s, e) => core.embed((w) => w.meter, (w, meter) => ({ ...w, meter }), core.only(toSignal, meterFor(s.lang)))(s, e);
+const update = core.sequence(lesson, counting);
+
+// ---- the shell: the only part that touches the device ----
+const store = localStore('hello.');
+const ENDPOINT = ''; // e.g. analytics.goatcounterEndpoint('your-code'); empty = count nothing
+const root = document.getElementById('app');
+const view = (s) => {
+  const t = i18n.translator(s.lang === 'hi' ? HI : {});
+  const card = CARDS[s.i % CARDS.length];
+  const today = core.dayOf(readClock());
+  return `<small id="streak">${esc(t('Day streak: {n}', { n: habit.current(s.streak, today) }))}</small>
+    <div class="big" id="word">${esc(card.en)}</div><div>${esc(card.hi)}</div>
+    <p>${esc(t('Do you know this word?'))}</p>
+    <button data-a="answer" data-right="1">${esc(t('Yes'))}</button><button data-a="answer" data-right="0">${esc(t('Not yet'))}</button>
+    <p><button data-a="lang" data-lang="${s.lang === 'hi' ? 'en' : 'hi'}">${s.lang === 'hi' ? 'English' : 'हिन्दी'}</button></p>
+    <small id="queued">${s.meter.queue.length} counts waiting · box of "${esc(card.id)}": ${srs.boxOf(s.cards, card.id)}</small>`;
+};
+const app = start({
+  program: { init: [{ ...init, ...readJson(store, 'state', {}) }, []], update },
+  run: (effect, dispatch, state) => {
+    if (effect.t === 'save') writeJson(store, 'state', state);
+    if (effect.t === 'send') ENDPOINT ? sendToGoatcounter(ENDPOINT, effect.hits).then((n) => dispatch(n ? { t: 'sent', n } : { t: 'failed' })) : dispatch({ t: 'failed' });
+  },
+  after: (state) => { root.innerHTML = view(state); },
+});
+onActions(root, (name, data) => {
+  const clock = readClock();
+  if (name === 'answer') return { t: 'answer', right: data.right === '1', now: clock.now, day: core.dayOf(clock) };
+  if (name === 'lang') return { t: 'lang', lang: data.lang };
+}, app.dispatch);
+app.dispatch({ t: 'opened', day: core.dayOf(readClock()) });
+window.app = app;
+</script>
+</body>
+</html>
