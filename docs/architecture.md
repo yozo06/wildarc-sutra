@@ -74,6 +74,7 @@ core ──┬── srs        spaced repetition
        ├── i18n       lookup, coverage, Indian script conversion
        ├── audio      voice packs → what to play
        ├── analytics  signals → anonymous hits, offline queue
+       ├── story      curriculum × track × locale → episodes; no-fail player
        └── pwa        offline file list → service worker text
 browser               clock, storage, speaker, sender, run loop   (the only impure part)
 ```
@@ -89,20 +90,20 @@ without the rest, and any of them can later become its own package without untan
 
 Changing any of these means a new name alongside the old one.
 
-## Planned: `story`
+## `story`: three things kept apart
 
-For games that teach through a serial story (first user: LETS). The model keeps three things apart so
-that each can grow without touching the others:
+For games that teach through a serial story (first user: LETS). Each axis can grow without touching
+the others:
 
 ```ts
 Curriculum  // what is learned: ordered skills, each a few lines of the target language
-Track       // whose life the story follows (one per audience): a scene for every skill
-Locale      // the language it is told in: narration, voice, pronunciation in the learner's script
+Track       // whose life the story follows (one per kind of learner): a scene for every skill
+Locale      // the language it is told in: text, and each line's meaning and sound
 
-buildEpisode : (Curriculum, Track, Locale, day) -> Result<Episode, Problem[]>
-play         : Update<Player, Tap, Effect>      // an episode is a list of beats; no fail state
+buildEpisode : (Curriculum, Track, Locale, n) -> Result<Episode, Problem[]>
+play         : (Episode) -> Update<Player, Tap, Cue>     // no fail state
 missing      : (Curriculum, Track[], Locale[]) -> Problem[]   // what is left to write, for CI
 ```
 
-A new audience is a new `Track`. A new language is a new `Locale`. A new lesson is a new skill, and
+A new kind of learner is a new `Track`. A new language is a new `Locale`. A new lesson is a new skill, and
 `missing` lists exactly which scenes and translations it now needs.

@@ -1,7 +1,7 @@
 {
   "name": "wildarc-sutra",
   "version": "0.1.0",
-  "description": "WildArc's shared libraries: small pure functions, chained. First set: the pieces behind offline learning games (spaced repetition, streaks, save codes, translations, voice packs, anonymous analytics, offline shell).",
+  "description": "WildArc's shared libraries: small pure functions, chained. First set: the pieces behind offline learning games (spaced repetition, streaks, save codes, translations, voice packs, anonymous analytics, story episodes, offline shell).",
   "type": "module",
   "license": "MIT",
   "repository": {
@@ -35,6 +35,7 @@
     "./i18n": "./dist/i18n/index.js",
     "./audio": "./dist/audio/index.js",
     "./analytics": "./dist/analytics/index.js",
+    "./story": "./dist/story/index.js",
     "./pwa": "./dist/pwa/index.js",
     "./browser": "./dist/browser/index.js"
   },

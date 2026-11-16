@@ -6,5 +6,6 @@ export * as save from './save/index.js';
 export * as i18n from './i18n/index.js';
 export * as audio from './audio/index.js';
 export * as analytics from './analytics/index.js';
+export * as story from './story/index.js';
 export * as pwa from './pwa/index.js';
 export * as browser from './browser/index.js';
