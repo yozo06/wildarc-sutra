@@ -5,7 +5,7 @@
 ```
             events                      effects
   taps ──▶ ┌──────────────────────────┐ ──▶ ┌───────────────────────┐
-  clock ─▶ │  pure core               │     │  shell (sutra/browser)│ ──▶ screen, sound,
+  clock ─▶ │  pure core               │     │  shell (src/browser)   │ ──▶ screen, sound,
   network ▶│  update(state, event)    │     │  carries effects out  │     storage, network
            └──────────────────────────┘ ◀── └───────────────────────┘
                        ▲      more events (sound ended, counts sent…)
@@ -21,8 +21,8 @@ The core never looks anything up. Whatever it needs arrives as an argument:
 | to save, play, send | returns an effect | call the device |
 | to fail | returns a `Result` | throw |
 
-Two checks keep this true (`npm run pure`): the core is type-checked with no browser APIs in scope,
-and a script rejects the clock, dice, timers and console outside `src/browser`.
+Two checks keep this true (`npm run rules`): everything outside `src/browser` is type-checked with no
+browser APIs in scope, and a script rejects the clock, dice, timers and console there.
 
 ## The shape everything shares
 
@@ -31,7 +31,7 @@ type Step<S, F>      = readonly [state: S, effects: readonly F[]];
 type Update<S, E, F> = (state: S, event: E) => Step<S, F>;
 ```
 
-Parts are combined with a handful of functions from `sutra/core`:
+Parts are combined with a handful of functions from `core`:
 
 | Function | Meaning |
 |---|---|
@@ -63,9 +63,9 @@ A game supplies:
 4. **An effect runner**: a `switch` over the game's effects, calling the shell.
 
 Everything else (remembering what is due, streaks, moving progress between phones, picking a voice
-clip, counting, working offline) comes from sutra.
+clip, counting, working offline) comes from these libraries.
 
-## Modules
+## Libraries
 
 ```
 core ──┬── srs        spaced repetition
@@ -78,7 +78,8 @@ core ──┬── srs        spaced repetition
 browser               clock, storage, speaker, sender, run loop   (the only impure part)
 ```
 
-Modules depend on `core` and nothing else, so an app can take one without the rest.
+Libraries depend on `core` and nothing else (checked by `npm run rules`), so an app can take one
+without the rest, and any of them can later become its own package without untangling.
 
 ### Things that are permanent
 
@@ -88,7 +89,7 @@ Modules depend on `core` and nothing else, so an app can take one without the re
 
 Changing any of these means a new name alongside the old one.
 
-## Planned: `sutra/story`
+## Planned: `story`
 
 For games that teach through a serial story (first user: LETS). The model keeps three things apart so
 that each can grow without touching the others:

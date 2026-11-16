@@ -1,4 +1,4 @@
-// Plays what sutra/audio planned: a recorded clip, or the device's own voice.
+// Plays what the audio library planned: a recorded clip, or the device's own voice.
 import { readManifest, NO_VOICES } from '../audio/index.js';
 import type { Playback, Voices } from '../audio/index.js';
 

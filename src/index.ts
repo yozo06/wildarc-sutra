@@ -1,4 +1,4 @@
-// sutra: small pure functions, chained. Import a part ('@yozo06/sutra/srs') or everything.
+// sutra: small pure functions, chained. Import a part ('wildarc-sutra/srs') or everything.
 export * as core from './core/index.js';
 export * as srs from './srs/index.js';
 export * as habit from './habit/index.js';

@@ -3,7 +3,7 @@
 //   update : (state, event) -> [next state, effects]
 //
 // An effect is a description of something to do in the world (play a sound, save,
-// send a count). Nothing in the core performs one; the shell (sutra/browser) does,
+// send a count). Nothing in the core performs one; the shell (src/browser) does,
 // and reports back with more events. A whole app is updates chained together.
 
 /** The outcome of one step: the next state and the effects it asks for. */

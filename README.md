@@ -1,29 +1,32 @@
-# sutra
+# wildarc-sutra
 
-*Sutra* means thread. This is a kit of small pure functions that you thread together
-to build learning games that work offline, on cheap phones, in the learner's own language.
+*Sutra* means thread. This is WildArc's shared collection of
+libraries: small pure functions that you thread together into working things.
 
-It was pulled out of [Kannada Kali](https://github.com/yozo06/kannada-kali) so that the next
-game does not start from zero. No dependencies. No server. No accounts.
+The first set comes out of [Kannada Kali](https://github.com/yozo06/kannada-kali): everything needed to
+build learning games that work offline, on cheap phones, in the learner's own language. More libraries
+join as other WildArc projects need them. No dependencies. No server. No accounts.
 
-## What is in it
+## The libraries
 
-| Part | What it gives you |
+One folder each under `src/`, each with its own README and tests. Take one or take all.
+
+| Library | What it gives you |
 |---|---|
-| `sutra/core` | `pipe`, `Result`, seeded randomness, calendar days, and the `update` shape every part shares |
-| `sutra/srs` | Spaced repetition on a Leitner ladder |
-| `sutra/habit` | Day streaks that forgive one missed day; per-day tallies |
-| `sutra/save` | Save codes (progress as one line of text) and merge rules for two saves |
-| `sutra/i18n` | Translation lookup, coverage checks, and conversion between Indian scripts |
-| `sutra/audio` | Voice packs: which recorded clip to play for a phrase, with fallbacks |
-| `sutra/analytics` | Anonymous counts (retention, drop-off) with an offline queue; GoatCounter adapter |
-| `sutra/pwa` | The service worker that makes an app folder work offline, plus the `sutra-sw` command |
-| `sutra/browser` | The shell: clock, storage, sound, network, and the loop that runs a program |
+| [`core`](src/core) | `pipe`, `Result`, seeded randomness, calendar days, and the `update` shape every part shares |
+| [`srs`](src/srs) | Spaced repetition on a Leitner ladder |
+| [`habit`](src/habit) | Day streaks that forgive one missed day; per-day tallies |
+| [`save`](src/save) | Save codes (progress as one line of text) and merge rules for two saves |
+| [`i18n`](src/i18n) | Translation lookup, coverage checks, and conversion between Indian scripts |
+| [`audio`](src/audio) | Voice packs: which recorded clip to play for a phrase, with fallbacks |
+| [`analytics`](src/analytics) | Anonymous counts (retention, drop-off) with an offline queue; GoatCounter adapter |
+| [`pwa`](src/pwa) | The service worker that makes an app folder work offline, plus the `sutra-sw` command |
+| [`browser`](src/browser) | The shell: clock, storage, sound, network, and the loop that runs a program |
 
 ## The one idea
 
 Every part is a function from values to values. Nothing reads the clock, rolls dice or
-touches the device, except `sutra/browser`.
+touches the device, except `browser`.
 
 ```
 update : (state, event) -> [next state, effects]
@@ -37,7 +40,7 @@ So any behaviour can be tested by feeding events in and comparing data out, a se
 replayed from its events, and parts combine without knowing about each other:
 
 ```js
-import { core, srs, habit, analytics } from '@yozo06/sutra';
+import { core, srs, habit, analytics } from 'wildarc-sutra';
 
 // One small update per concern...
 const lesson = (s, e) => e.t !== 'answer' ? [s, []] : [{
@@ -58,18 +61,19 @@ const update = core.sequence(lesson, counting);
 A complete runnable page is in [`examples/hello`](examples/hello/index.html). The built files are
 plain ES modules, so a browser loads them as they are: no bundler needed.
 
-The rule is enforced, not hoped for. `npm run pure` type-checks everything outside
-`src/browser` with no browser APIs available, and rejects `Date.now()`, `Math.random()` and timers.
+The rule is enforced, not hoped for. `npm run rules` type-checks everything outside
+`src/browser` with no browser APIs available, rejects `Date.now()`, `Math.random()` and timers, and
+checks that each library imports only from itself and `core`.
 
 ## Use it
 
 ```sh
-npm install github:yozo06/sutra
+npm install github:yozo06/wildarc-sutra
 ```
 
 ```js
-import { review } from '@yozo06/sutra/srs';
-import { start, readClock } from '@yozo06/sutra/browser';
+import { review } from 'wildarc-sutra/srs';
+import { start, readClock } from 'wildarc-sutra/browser';
 ```
 
 To make an app folder work offline, generate its service worker after every change:
@@ -83,11 +87,19 @@ npx sutra-sw --root app --prefix myapp --check  # for CI: fails if it is stale
 
 ```sh
 npm install
-npm run check   # build, purity check, tests
+npm run check   # build, rules, tests
 ```
 
 Tests are in `test/`. Laws (for example "merging a save with itself changes nothing") are checked
 against hundreds of generated cases using sutra's own seeded randomness; see `test/prop.mjs`.
+
+## How the collection grows
+
+- A new library is a new folder under `src/` with a `README.md`, an entry in `package.json` `exports`,
+  and a test file. It is named for the job it does (`srs`, `save`), never for the app that first needed it.
+- A library may import only from itself and `core`. That keeps every one usable alone and easy to lift
+  out into its own package the day it needs its own dependencies or release cycle.
+- Code in other languages (a Haskell service, Python tooling) gets its own top-level folder when it arrives.
 
 ## Read more
 
@@ -97,9 +109,9 @@ against hundreds of generated cases using sutra's own seeded randomness; see `te
 
 ## Status
 
-0.1: the parts above are extracted from a working app and tested, and the API may still move.
+0.1: the libraries above are extracted from a working app and tested, and the API may still move.
 Used by: Kannada Kali (migration in progress), LETS (in progress).
 
 ## Licence
 
-MIT. Copyright (c) 2026 Yogesh Zope.
+MIT. Copyright (c) 2026 Yogesh Zope. A WildArc project.

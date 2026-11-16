@@ -1,13 +1,31 @@
 {
-  "name": "@yozo06/sutra",
+  "name": "wildarc-sutra",
   "version": "0.1.0",
-  "description": "Small pure functions, chained, for building offline learning games: spaced repetition, streaks, save codes, translations, voice packs, anonymous analytics and an offline app shell.",
+  "description": "WildArc's shared libraries: small pure functions, chained. First set: the pieces behind offline learning games (spaced repetition, streaks, save codes, translations, voice packs, anonymous analytics, offline shell).",
   "type": "module",
   "license": "MIT",
-  "repository": { "type": "git", "url": "git+https://github.com/yozo06/sutra.git" },
-  "keywords": ["learning", "spaced-repetition", "pwa", "offline-first", "functional", "i18n", "indic", "analytics"],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yozo06/wildarc-sutra.git"
+  },
+  "keywords": [
+    "wildarc",
+    "learning",
+    "spaced-repetition",
+    "pwa",
+    "offline-first",
+    "functional",
+    "i18n",
+    "indic",
+    "analytics"
+  ],
   "sideEffects": false,
-  "files": ["dist", "bin", "README.md", "LICENSE"],
+  "files": [
+    "dist",
+    "bin",
+    "README.md",
+    "LICENSE"
+  ],
   "exports": {
     ".": "./dist/index.js",
     "./core": "./dist/core/index.js",
@@ -20,15 +38,18 @@
     "./pwa": "./dist/pwa/index.js",
     "./browser": "./dist/browser/index.js"
   },
-  "bin": { "sutra-sw": "./bin/sutra-sw.mjs" },
+  "bin": {
+    "sutra-sw": "./bin/sutra-sw.mjs"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "pure": "tsc -p tsconfig.pure.json && node scripts/check-purity.mjs",
     "test": "node --test",
-    "check": "npm run build && npm run pure && npm test",
-    "prepare": "npm run build"
+    "check": "npm run build && npm run rules && npm test",
+    "prepare": "npm run build",
+    "rules": "tsc -p tsconfig.pure.json && node scripts/check-rules.mjs"
   },
   "devDependencies": {
     "typescript": ">=5.6"
-  }
+  },
+  "homepage": "https://github.com/yozo06/wildarc-sutra#readme"
 }
