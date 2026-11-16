@@ -10,4 +10,6 @@ test('offline shell: lists the app files, leaves voice clips to be cached on fir
   assert.match(sw, /"\.\/","audio\/manifest\.json","css\/app\.css","index\.html","js\/main\.js"/);
   assert.doesNotThrow(() => new Function('self', 'caches', 'location', 'fetch', sw)({ addEventListener() {} }, {}, {}, () => {}), 'the generated file is valid JavaScript');
   assert.equal(serviceWorker({ prefix: 'kk', version: 'abc123', assets: files }), sw, 'same input, same file');
+  assert.ok(!sw.includes('importScripts'), 'no extra scripts unless asked');
+  assert.match(serviceWorker({ prefix: 'kk', version: 'v', assets: files, imports: ['remind-sw.js'] }), /\nimportScripts\("remind-sw\.js"\);\n/);
 });
