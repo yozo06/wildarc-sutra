@@ -15,6 +15,7 @@
 //   --force             record again what already exists
 //   --prune             delete clips whose sentence no longer exists
 //   --samples <dir>     where --sample writes           --endpoint <url>  another server (tests, a proxy)
+//   --per-minute 50     never send requests faster than this (Sarvam's starter plan allows 60 a minute)
 import { mkdirSync, existsSync, readFileSync, writeFileSync, readdirSync, rmSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { takes, tally, pending, samples, sortClips, withPack, isMp3, sarvamRequest, sarvamReply, worthRetrying, sampleFile, listenPage, SARVAM_KEY_HEADER, SARVAM_MODEL } from '../dist/tts/index.js';
@@ -39,6 +40,7 @@ const all = read.value;
 
 const out = resolve(opt('out', 'app/audio'));
 const pack = { id: opt('pack', 'sarvam'), label: opt('label', 'Sarvam') };
+if (!/^[a-z0-9][a-z0-9_-]*$/.test(pack.id)) stop(`A pack name is a folder name: small letters, digits, - and _ only. Got "${pack.id}".`, 2);
 const dir = join(out, pack.id);
 const manifestFile = join(out, 'manifest.json');
 const onDisk = () => (existsSync(dir) ? readdirSync(dir).filter((f) => f.endsWith('.mp3')).map((f) => f.slice(0, -4)) : []);
@@ -53,11 +55,16 @@ const key = process.env.SARVAM_API_KEY;
 if (!key) stop('Set SARVAM_API_KEY in the environment, or run with --list. Nothing recorded.');
 const pace = Number(opt('pace', '0.9'));
 const endpoint = opt('endpoint', '');
+// Requests are sent one at a time, never closer together than the plan's limit allows.
+const gap = 60000 / Math.max(1, Number(opt('per-minute', '50')) || 50);
+let last = 0;
+const turn = async () => { const wait = last + gap - Date.now(); if (wait > 0) await sleep(wait); last = Date.now(); };
 
 async function record(take, speaker) {
   const req = sarvamRequest(take, { speaker, pace });
   if (!req.ok) throw new Error(req.error);
   for (let attempt = 0; ; attempt++) {
+    await turn();
     const res = await fetch(endpoint || req.value.url, { method: 'POST', headers: { 'content-type': 'application/json', [SARVAM_KEY_HEADER]: key }, body: JSON.stringify(req.value.body) });
     if (res.ok) {
       const audio = sarvamReply(await res.json());
@@ -82,7 +89,6 @@ if (has('sample')) {
     for (const [i, take] of picks.entries()) {
       try { const clip = await record(take, speaker); mkdirSync(join(root, speaker), { recursive: true }); writeFileSync(join(root, speaker, sampleFile(i, take)), clip); ok++; chars += take.say.length; }
       catch (e) { console.error(`${speaker} [${take.lang}]: ${e.message}`); if (i === 0) break; }   // a voice that fails its first sentence is skipped
-      await sleep(150);
     }
     made += ok; if (ok) heard.push(speaker);
     console.log(ok ? `sampled ${speaker} (${ok} of ${picks.length})` : `skipped ${speaker}`);
@@ -106,7 +112,6 @@ for (const take of todo) {
     if (failed.length > 20) { console.error('Too many failures, stopping.'); break; }
   }
   if (made && made % 50 === 0) console.log(`  ${made} recorded…`);
-  await sleep(150);
 }
 const { keep, orphans } = sortClips(onDisk(), all);
 if (has('prune')) for (const c of orphans) rmSync(join(dir, c + '.mp3'));

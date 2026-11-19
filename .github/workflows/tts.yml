@@ -2,8 +2,10 @@ name: tts
 # Records an app's sentences with Sarvam AI. Any repository can call this; see src/tts/README.md.
 #   mode "sample": a few sentences per voice, attached to the run as "tts-voice-samples" with a page
 #                  to listen. Nothing is committed.
-#   mode "full":   everything still missing, in one voice; commits the clips and the manifest, then
-#                  starts the caller's publish workflow if one is named.
+#   mode "full":   everything still missing, in one voice or in several (each voice its own pack);
+#                  commits the clips and the manifest, then starts the caller's publish workflow if
+#                  one is named. What was recorded is committed even if some sentences failed, so a
+#                  second run only pays for the rest.
 # The caller passes its SARVAM_API_KEY secret and grants `contents: write` and `actions: write`.
 on:
   workflow_call:
@@ -21,9 +23,13 @@ on:
         type: string
         default: ritu,kavya,roopa,gokul
       speaker:
-        description: 'full: the one voice to use'
+        description: 'full: the one voice to use (ignored when "voices" is given)'
         type: string
         default: ritu
+      voices:
+        description: 'full: several voices, comma-separated, each its own pack named after the voice. "gokul,roopa" or with labels "gokul=Gokul,roopa=Roopa"'
+        type: string
+        default: ''
       pace:
         description: Speaking pace, 0.5 to 2.0 (1.0 is normal)
         type: string
@@ -37,11 +43,11 @@ on:
         type: string
         default: app/audio
       pack:
-        description: Folder name of this voice pack
+        description: 'Folder name of the voice pack (one voice only; with "voices" each pack is named after its voice)'
         type: string
         default: sarvam
       label:
-        description: Name of the pack as learners see it
+        description: 'Name of the pack as learners see it (one voice only)'
         type: string
         default: Sarvam
       default-pack:
@@ -79,6 +85,7 @@ jobs:
       SENTENCES: ${{ inputs.sentences }}
       SPEAKERS: ${{ inputs.speakers }}
       SPEAKER: ${{ inputs.speaker }}
+      VOICES: ${{ inputs.voices }}
       PACE: ${{ inputs.pace }}
       FORCE: ${{ inputs.force }}
       AUDIO_DIR: ${{ inputs.audio-dir }}
@@ -125,13 +132,35 @@ jobs:
         env:
           SARVAM_API_KEY: ${{ secrets.SARVAM_API_KEY }}
         run: |
-          set -- --sentences "$RUNNER_TEMP/sentences.json" --out "$AUDIO_DIR" --pack "$PACK" --label "$LABEL" --speaker "$SPEAKER" --pace "$PACE" --prune
-          if [ -n "$DEFAULT_PACK" ]; then set -- "$@" --default "$DEFAULT_PACK"; fi
-          if [ "$FORCE" = "true" ]; then set -- "$@" --force; fi
-          node "$RUNNER_TEMP/sutra/bin/sutra-tts.mjs" "$@"
+          status=0
+          record() {   # speaker, pack, label
+            set -- --sentences "$RUNNER_TEMP/sentences.json" --out "$AUDIO_DIR" --speaker "$1" --pack "$2" --label "$3" --pace "$PACE" --prune
+            if [ -n "$DEFAULT_PACK" ]; then set -- "$@" --default "$DEFAULT_PACK"; fi
+            if [ "$FORCE" = "true" ]; then set -- "$@" --force; fi
+            node "$RUNNER_TEMP/sutra/bin/sutra-tts.mjs" "$@" || status=1
+          }
+          if [ -n "$VOICES" ]; then
+            IFS=',' read -ra LIST <<< "$VOICES"
+            for v in "${LIST[@]}"; do
+              v="$(echo "$v" | xargs)"; [ -n "$v" ] || continue
+              speaker="${v%%=*}"; label="${v#*=}"
+              if [ "$label" = "$v" ]; then label="$(echo "${speaker:0:1}" | tr '[:lower:]' '[:upper:]')${speaker:1}"; fi
+              echo "::group::Voice $speaker"; record "$speaker" "$speaker" "$label"; echo "::endgroup::"
+            done
+            echo "TTS_WHAT=$(echo "$VOICES" | sed 's/=[^,]*//g; s/ *, */, /g')" >> "$GITHUB_ENV"
+          else
+            record "$SPEAKER" "$PACK" "$LABEL"
+            echo "TTS_WHAT=$PACK pack, voice $SPEAKER" >> "$GITHUB_ENV"
+          fi
+          echo "TTS_STATUS=$status" >> "$GITHUB_ENV"
       - name: After recording
         if: inputs.mode == 'full' && inputs.after != ''
-        run: bash -c "$AFTER"
+        # If this fails the clips are still committed (they cost money to make); the run ends red.
+        run: |
+          if ! bash -c "$AFTER"; then
+            echo "::error::The command after recording failed."
+            echo "TTS_AFTER=failed" >> "$GITHUB_ENV"
+          fi
       - name: Commit and push
         if: inputs.mode == 'full'
         run: |
@@ -139,10 +168,17 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A -- "$AUDIO_DIR" $COMMIT
           if git diff --cached --quiet; then echo "Nothing new to commit."; exit 0; fi
-          git commit -m "Voices: $PACK pack, voice $SPEAKER, pace $PACE"
+          git commit -m "Voices: $TTS_WHAT; pace $PACE"
           git push
+          echo "TTS_PUSHED=1" >> "$GITHUB_ENV"
       - name: Publish
-        if: inputs.mode == 'full' && inputs.publish != ''
+        if: inputs.mode == 'full' && inputs.publish != '' && env.TTS_PUSHED == '1' && env.TTS_AFTER != 'failed'
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh workflow run "$PUBLISH" --ref "$GITHUB_REF_NAME"
+      - name: Report
+        if: inputs.mode == 'full'
+        run: |
+          if [ "$TTS_STATUS" != "0" ]; then echo "::error::Some sentences could not be recorded (see the Record step). What succeeded is saved; run again to record the rest."; exit 1; fi
+          if [ "$TTS_AFTER" = "failed" ]; then echo "::error::Clips are saved, but the command after recording failed, so nothing was published. Fix it and publish by hand."; exit 1; fi
+          echo "All sentences recorded."

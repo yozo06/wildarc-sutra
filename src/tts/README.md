@@ -47,10 +47,18 @@ jobs:
   with an `index.html` that plays the voices side by side. Nothing is committed.
 - **full** records everything still missing in one voice, deletes clips whose sentence is gone,
   updates the manifest, commits and (if asked) publishes. Run it again after adding sentences: only
-  the new ones are recorded.
+  the new ones are recorded. If some sentences fail, what succeeded is still committed and the run
+  ends red; run it again for the rest.
+
+**Several voices** (say a man's and a woman's, for learners to choose between): pass
+`voices: gokul,roopa` instead of `speaker`. Each voice becomes its own pack, named after the voice
+(`app/audio/gokul/`, `app/audio/roopa/`); `gokul=Gokul,roopa=Roopa` sets the names learners see.
 
 Other inputs: `pace` (0.9), `force`, `audio-dir` (`app/audio`), `pack` (`sarvam`), `label`,
 `default-pack`, `commit` (extra paths to commit), `sutra-ref` (`main`).
+
+Requests go out one at a time, at most 50 a minute (Sarvam's starter plan allows 60), so a thousand
+sentences take about twenty minutes. Sarvam lists Bulbul v3 at ₹3 per 1,000 characters.
 
 ## Recording by hand
 

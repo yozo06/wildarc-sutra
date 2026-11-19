@@ -83,7 +83,7 @@ test('the listening page shows every voice beside every sentence and escapes tex
 const bin = fileURLToPath(new URL('../bin/sutra-tts.mjs', import.meta.url));
 const fakeMp3 = Buffer.concat([Buffer.from([0x49, 0x44, 0x33]), Buffer.alloc(500, 1)]).toString('base64');
 const run = (args, { input = JSON.stringify(SENTENCES), env = {}, cwd } = {}) => new Promise((done) => {
-  const p = spawn(process.execPath, [bin, ...args], { cwd, env: { PATH: process.env.PATH, ...env } });
+  const p = spawn(process.execPath, [bin, ...args, '--per-minute', '6000'], { cwd, env: { PATH: process.env.PATH, ...env } });
   let out = ''; p.stdout.on('data', (d) => (out += d)); p.stderr.on('data', (d) => (out += d));
   p.on('close', (code) => done({ code, out })); p.stdin.end(input);
 });
@@ -135,6 +135,18 @@ test('sutra-tts: list, sample, record, record again, prune, and never show the k
   } finally { api.close(); }
 });
 
+test('sutra-tts: requests are spaced out to stay inside the plan', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'sutra-tts-'));
+  const api = await sarvam(() => [200, { audios: [fakeMp3] }]);
+  try {
+    const t0 = Date.now();
+    const p = spawn(process.execPath, [bin, '--speaker', 'ritu', '--per-minute', '300', '--endpoint', api.url, '--out', join(dir, 'a')], { env: { PATH: process.env.PATH, SARVAM_API_KEY: 'k' } });
+    p.stdin.end(JSON.stringify(SENTENCES)); await new Promise((r) => p.on('close', r));
+    assert.equal(api.seen.length, 5);
+    assert.ok(Date.now() - t0 >= 4 * 200 - 50, 'five requests at 300 a minute take at least four gaps of 200 ms');
+  } finally { api.close(); }
+});
+
 test('sutra-tts: a refused first request stops at once; a busy server is retried; rubbish is refused', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'sutra-tts-'));
   const env = { SARVAM_API_KEY: 'k' };
@@ -152,5 +164,7 @@ test('sutra-tts: a refused first request stops at once; a busy server is retried
     assert.ok(d.code === 2 && /expected a list/.test(d.out), d.out);
     const e = await run(['--speaker', 'ritu', '--endpoint', busy.url, '--out', join(dir, 'e')], { env, input: JSON.stringify([{ text: 'Bonjour', lang: 'fr' }]) });
     assert.ok(e.code === 1 && /no voice for language "fr"/.test(e.out), e.out);
+    const f = await run(['--speaker', 'ritu', '--pack', '../outside', '--endpoint', busy.url, '--out', join(dir, 'f')], { env });
+    assert.ok(f.code === 2 && /A pack name is a folder name/.test(f.out) && !existsSync(join(dir, 'outside')), f.out);
   } finally { refuse.close(); busy.close(); wav.close(); }
 });
