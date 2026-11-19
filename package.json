@@ -1,7 +1,7 @@
 {
   "name": "wildarc-sutra",
-  "version": "0.1.0",
-  "description": "WildArc's shared libraries: small pure functions, chained. First set: the pieces behind offline learning games (spaced repetition, streaks, save codes, translations, voice packs, anonymous analytics, story episodes, offline shell).",
+  "version": "0.2.0",
+  "description": "WildArc's shared libraries: small pure functions, chained. First set: the pieces behind offline learning games (spaced repetition, streaks, save codes, translations, voice packs and the recorder that fills them, anonymous analytics, story episodes, offline shell).",
   "type": "module",
   "license": "MIT",
   "repository": {
@@ -17,7 +17,8 @@
     "functional",
     "i18n",
     "indic",
-    "analytics"
+    "analytics",
+    "text-to-speech"
   ],
   "sideEffects": false,
   "files": [
@@ -34,13 +35,15 @@
     "./save": "./dist/save/index.js",
     "./i18n": "./dist/i18n/index.js",
     "./audio": "./dist/audio/index.js",
+    "./tts": "./dist/tts/index.js",
     "./analytics": "./dist/analytics/index.js",
     "./story": "./dist/story/index.js",
     "./pwa": "./dist/pwa/index.js",
     "./browser": "./dist/browser/index.js"
   },
   "bin": {
-    "sutra-sw": "./bin/sutra-sw.mjs"
+    "sutra-sw": "./bin/sutra-sw.mjs",
+    "sutra-tts": "./bin/sutra-tts.mjs"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",

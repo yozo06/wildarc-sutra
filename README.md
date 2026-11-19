@@ -19,6 +19,7 @@ One folder each under `src/`, each with its own README and tests. Take one or ta
 | [`save`](src/save) | Save codes (progress as one line of text) and merge rules for two saves |
 | [`i18n`](src/i18n) | Translation lookup, coverage checks, and conversion between Indian scripts |
 | [`audio`](src/audio) | Voice packs: which recorded clip to play for a phrase, with fallbacks |
+| [`tts`](src/tts) | Records every sentence an app speaks, once, with a text-to-speech service (Sarvam AI); the `sutra-tts` command and a workflow any app can call |
 | [`analytics`](src/analytics) | Anonymous counts (retention, drop-off) with an offline queue; GoatCounter adapter |
 | [`story`](src/story) | Serial-story lessons: curriculum × track × language, and an episode player that cannot be failed |
 | [`pwa`](src/pwa) | The service worker that makes an app folder work offline, plus the `sutra-sw` command |

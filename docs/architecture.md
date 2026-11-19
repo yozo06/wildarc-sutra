@@ -73,6 +73,7 @@ core ──┬── srs        spaced repetition
        ├── save       save codes, merge rules
        ├── i18n       lookup, coverage, Indian script conversion
        ├── audio      voice packs → what to play
+       ├── tts        sentences → what to record, what to ask the voice service
        ├── analytics  signals → anonymous hits, offline queue
        ├── story      curriculum × track × locale → episodes; no-fail player
        └── pwa        offline file list → service worker text

@@ -1,0 +1,148 @@
+name: tts
+# Records an app's sentences with Sarvam AI. Any repository can call this; see src/tts/README.md.
+#   mode "sample": a few sentences per voice, attached to the run as "tts-voice-samples" with a page
+#                  to listen. Nothing is committed.
+#   mode "full":   everything still missing, in one voice; commits the clips and the manifest, then
+#                  starts the caller's publish workflow if one is named.
+# The caller passes its SARVAM_API_KEY secret and grants `contents: write` and `actions: write`.
+on:
+  workflow_call:
+    inputs:
+      mode:
+        description: sample or full
+        type: string
+        default: sample
+      sentences:
+        description: 'A command, run in the caller repository, that prints the sentences as JSON: [{ "text", "lang" }]'
+        type: string
+        required: true
+      speakers:
+        description: 'sample: voices to try, comma-separated'
+        type: string
+        default: ritu,kavya,roopa,gokul
+      speaker:
+        description: 'full: the one voice to use'
+        type: string
+        default: ritu
+      pace:
+        description: Speaking pace, 0.5 to 2.0 (1.0 is normal)
+        type: string
+        default: '0.9'
+      force:
+        description: 'full: record again what already exists'
+        type: boolean
+        default: false
+      audio-dir:
+        description: Folder that holds the voice packs
+        type: string
+        default: app/audio
+      pack:
+        description: Folder name of this voice pack
+        type: string
+        default: sarvam
+      label:
+        description: Name of the pack as learners see it
+        type: string
+        default: Sarvam
+      default-pack:
+        description: 'full: make this pack the default (empty = leave the default as it is)'
+        type: string
+        default: ''
+      after:
+        description: 'full: a command to run after recording, before the commit (rebuild a file list, run checks)'
+        type: string
+        default: ''
+      commit:
+        description: 'full: extra paths to commit besides the audio folder, space-separated'
+        type: string
+        default: ''
+      publish:
+        description: 'full: a workflow file in the caller repository to start after the push, e.g. pages.yml'
+        type: string
+        default: ''
+      sutra-ref:
+        description: Branch or tag of wildarc-sutra to record with
+        type: string
+        default: main
+    secrets:
+      SARVAM_API_KEY:
+        required: true
+jobs:
+  tts:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: write
+    env:
+      # Inputs reach the shell only through the environment, never pasted into a script.
+      MODE: ${{ inputs.mode }}
+      SENTENCES: ${{ inputs.sentences }}
+      SPEAKERS: ${{ inputs.speakers }}
+      SPEAKER: ${{ inputs.speaker }}
+      PACE: ${{ inputs.pace }}
+      FORCE: ${{ inputs.force }}
+      AUDIO_DIR: ${{ inputs.audio-dir }}
+      PACK: ${{ inputs.pack }}
+      LABEL: ${{ inputs.label }}
+      DEFAULT_PACK: ${{ inputs.default-pack }}
+      AFTER: ${{ inputs.after }}
+      COMMIT: ${{ inputs.commit }}
+      PUBLISH: ${{ inputs.publish }}
+      SUTRA_REF: ${{ inputs.sutra-ref }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check the request
+        env:
+          SARVAM_API_KEY: ${{ secrets.SARVAM_API_KEY }}
+        run: |
+          test -n "$SARVAM_API_KEY" || { echo "::error::Add the repository secret SARVAM_API_KEY first."; exit 1; }
+          case "$MODE" in sample|full) ;; *) echo "::error::mode must be sample or full, got '$MODE'"; exit 1;; esac
+      - name: Get the recorder
+        run: |
+          git clone --quiet --depth 1 --branch "$SUTRA_REF" https://github.com/yozo06/wildarc-sutra "$RUNNER_TEMP/sutra"
+          cd "$RUNNER_TEMP/sutra" && npm install --no-audit --no-fund --silent
+      - name: Collect the sentences
+        run: |
+          bash -c "$SENTENCES" > "$RUNNER_TEMP/sentences.json"
+          node "$RUNNER_TEMP/sutra/bin/sutra-tts.mjs" --sentences "$RUNNER_TEMP/sentences.json" --out "$AUDIO_DIR" --pack "$PACK" --list
+      - name: Sample voices
+        if: inputs.mode == 'sample'
+        env:
+          SARVAM_API_KEY: ${{ secrets.SARVAM_API_KEY }}
+        run: node "$RUNNER_TEMP/sutra/bin/sutra-tts.mjs" --sentences "$RUNNER_TEMP/sentences.json" --sample --speakers "$SPEAKERS" --pace "$PACE" --samples "$RUNNER_TEMP/tts-samples"
+      - name: Offer the samples as a download
+        if: inputs.mode == 'sample'
+        uses: actions/upload-artifact@v4
+        with:
+          name: tts-voice-samples
+          path: ${{ runner.temp }}/tts-samples
+          if-no-files-found: error
+      - name: Record everything
+        if: inputs.mode == 'full'
+        env:
+          SARVAM_API_KEY: ${{ secrets.SARVAM_API_KEY }}
+        run: |
+          set -- --sentences "$RUNNER_TEMP/sentences.json" --out "$AUDIO_DIR" --pack "$PACK" --label "$LABEL" --speaker "$SPEAKER" --pace "$PACE" --prune
+          if [ -n "$DEFAULT_PACK" ]; then set -- "$@" --default "$DEFAULT_PACK"; fi
+          if [ "$FORCE" = "true" ]; then set -- "$@" --force; fi
+          node "$RUNNER_TEMP/sutra/bin/sutra-tts.mjs" "$@"
+      - name: After recording
+        if: inputs.mode == 'full' && inputs.after != ''
+        run: bash -c "$AFTER"
+      - name: Commit and push
+        if: inputs.mode == 'full'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A -- "$AUDIO_DIR" $COMMIT
+          if git diff --cached --quiet; then echo "Nothing new to commit."; exit 0; fi
+          git commit -m "Voices: $PACK pack, voice $SPEAKER, pace $PACE"
+          git push
+      - name: Publish
+        if: inputs.mode == 'full' && inputs.publish != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run "$PUBLISH" --ref "$GITHUB_REF_NAME"
